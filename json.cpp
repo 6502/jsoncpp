@@ -180,4 +180,92 @@ Value parse(const char *& s) {
     return Value();
 }
 
+void save(const Value& x, std::vector<unsigned char>& out) {
+    switch(x.type) {
+    case Value::NONE: out.push_back(0); break;
+    case Value::BOOLEAN: out.push_back(x.bval ? 't' : 'f'); break;
+    case Value::NUMBER: {
+        out.resize(out.size() + 9);
+        out[out.size()-9] = 'n';
+        memcpy(&out[out.size()-8], &x.num, 8);
+        break;
+    }
+    case Value::STRING: {
+        int sz = x.str->size();
+        out.resize(out.size() + 5 + sz);
+        out[out.size()-5-sz] = 's';
+        memcpy(&out[out.size()-4-sz], &sz, 4);
+        memcpy(&out[out.size()-sz], x.str->data(), sz);
+        break;
+    }
+    case Value::ARRAY: {
+        int sz = x.arr->size();
+        out.resize(out.size() + 5);
+        out[out.size()-5] = 'a';
+        memcpy(&out[out.size()-4], &sz, 4);
+        for (int i=0; i<sz; i++) {
+            save((*x.arr)[i], out);
+        }
+        break;
+    }
+    case Value::OBJECT: {
+        int sz = x.obj->size();
+        out.resize(out.size() + 5);
+        out[out.size()-5] = 'o';
+        memcpy(&out[out.size()-4], &sz, 4);
+        for (std::map<std::string, Value>::const_iterator i=x.obj->begin(), e=x.obj->end(); i!=e; ++i) {
+            const std::string& key = i->first;
+            int sz = key.size();
+            out.resize(out.size() + sz + 4);
+            memcpy(&out[out.size()-sz-4], &sz, 4);
+            memcpy(&out[out.size()-sz], key.data(), sz);
+            save(i->second, out);
+        }
+        break;
+    }
+    default:
+        err("Unknown object type");
+    }
+}
+
+void load(Value& x, const unsigned char *& p) {
+    switch(*p++) {
+    case 0: x = Value(); break;
+    case 't': x = true; break;
+    case 'f': x = false; break;
+    case 'n': {
+        x = 1.;
+        memcpy(&x.num, p, 8); p += 8;
+        break;
+    }
+    case 's': {
+        int sz; memcpy(&sz, p, 4); p += 4;
+        x = std::string((char *)p, (char *)p+sz);
+        p += sz;
+        break;
+    }
+    case 'a': {
+        int sz; memcpy(&sz, p, 4); p += 4;
+        x = Value::Array(sz);
+        for (int i=0; i<sz; i++) {
+            load(x[i], p);
+        }
+        break;
+    }
+    case 'o': {
+        int sz; memcpy(&sz, p, 4); p += 4;
+        x = Value::Object();
+        for (int i=0; i<sz; i++) {
+            int ksz; memcpy(&ksz, p, 4); p += 4;
+            std::string key((char *)p, (char *)p+ksz);
+            p += ksz;
+            load(x[key], p);
+        }
+        break;
+    }
+    default:
+        err("Internal error during load");
+    }
+}
+
 }

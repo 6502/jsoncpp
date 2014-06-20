@@ -70,5 +70,28 @@ int main() {
         printf("data = %i bytes\n", int(s.size()));
     }
 
+    {
+        clock_t start = clock();
+        for (int i=0; i<1000; i++) {
+            std::vector<unsigned char> buf;
+            JSON::save(v["path"], buf);
+        }
+        clock_t stop = clock();
+        printf("obj -> buf = %0.3fms\n", double(stop-start) / CLOCKS_PER_SEC);
+    }
+
+    {
+        clock_t start = clock();
+        std::vector<unsigned char> buf;
+        JSON::save(v["path"], buf);
+        for (int i=0; i<1000; i++) {
+            Value x;
+            const unsigned char *p = &buf[0];
+            JSON::load(x, p);
+        }
+        clock_t stop = clock();
+        printf("buf -> obj = %0.3fms\n", double(stop-start) / CLOCKS_PER_SEC);
+        printf("data = %i bytes\n", int(buf.size()));
+    }
     return 0;
 }

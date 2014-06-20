@@ -247,6 +247,9 @@ std::string parseString(const char *&);
 std::string json(const Value&);
 Value parse(const char *&);
 
+void save(const Value&, std::vector<unsigned char>&);
+void load(Value&, const unsigned char *&);
+
 }
 
 #endif // JSON_H_INCLUDED
